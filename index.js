@@ -73,6 +73,7 @@ class Bridge {
     });
 
     this.ircUsers = {}; // Won't always have a full list, used for auth
+    this.discordChannel = {}; // Will hold a reference to the channel for easy reference
   }
 
   /**
@@ -112,6 +113,7 @@ class Bridge {
       var onReady = () => {
         // Remove this listener
         this.discord.removeListener('ready', onReady);
+        this.discordChannel = this.discord.channels.get("name", this.c.discord.channel);
 
         // Debug output
         if (this.c.verbose) {
@@ -168,7 +170,7 @@ class Bridge {
    * @param {string} str String to output
    */
   sendToDiscord(str) {
-    this.discord.channels.get("name", this.c.discord.channel).send(str);
+    this.discordChannel.send(str);
   }
 
   /**
@@ -192,53 +194,60 @@ class Bridge {
       });
     });
   }
+
+  /**
+   * Builds a bridge, so your messages can get over it
+   */
+  bridge() {
+    return Promise.all([this.loginDiscord(), this.loginIrc()])
+      .catch(function(e) {
+        console.error('failed to login ' + e);
+        console.error(e.stack);
+        throw e;
+      })
+      .then(() => {
+        // Add Discord message listeners
+        this.discord.on('message', (message) => {
+          // Ignore messages from self
+          if (message.author.id !== this.discord.user.id) {
+            // Ignore PMs (don't want to be putting those everywhere)
+            if (message.channel instanceof Discord.TextChannel) {
+              // Create message, format, and send
+              var m = new Message(message.content, message.author.username, 'D', true);
+              Promise.resolve(m)
+                .then(this.formatForIrc)
+                .then(this.sendToIrc);
+
+              if (this.c.verbose) {
+                console.log(this.formatForConsole(m));
+              }
+            }
+          }
+        });
+        // Add IRC message listeners
+        this.irc.on('message' + this.c.irc.channel, (nick, text, message) => {
+          // Ignore message from self
+          if (nick !== this.irc.nick) {
+            // Check if user is registered
+            this.ircUserRegistered(nick)
+              .then((authed) => {
+                // Create messafe, format, send
+                var m = new Message(text, nick, 'I', authed);
+                Promise.resolve(m)
+                  .then(this.formatForDiscord)
+                  .then(this.sendToDiscord);
+
+                if (this.c.verbose) {
+                  console.log(this.formatForConsole(m));
+                }
+              });
+          }
+        });
+      });
+  }
 }
 
-/* THE FOLLOWING CODE WILL NOT WORK
- * Additionally, it causes many 'not defined' errors
- */
-Promise.all([loginDiscord(), loginIrc()])
-  .catch(function(e) {
-    console.error('failed to login ' + e);
-    console.error(e.stack);
-    throw e;
-  })
-  .then(function() {
-    // Add Discord message listeners
-    discord.on('message', function(message) {
-      // Ignore messages from self
-      if (message.author.id !== discord.user.id) {
-        // Ignore PMs (don't want to be putting those everywhere)
-        if (message.channel instanceof Discord.TextChannel) {
-          // Create message, format, and send
-          var m = new Message(message.content, message.author.username, 'D', true);
-          Promise.resolve(m)
-            .then(formatForIrc)
-            .then(sendToIrc);
-
-          if (config.verbose) {
-            console.log(formatForConsole(m));
-          }
-        }
-      }
-    });
-    // Add IRC message listeners
-    irc.on('message' + config.irc.channel, function(nick, text, message) {
-      // Ignore message from self
-      if (nick !== irc.nick) {
-        // Check if user is registered
-        ircUserRegistered(nick)
-          .then(function(authed) {
-            // Create messafe, format, send
-            var m = new Message(text, nick, 'I', authed);
-            Promise.resolve(m)
-              .then(formatForDiscord)
-              .then(sendToDiscord);
-
-            if (config.verbose) {
-              console.log(formatForConsole(m));
-            }
-          });
-      }
-    });
-  });
+module.exports = {
+  Bridge: Bridge,
+  Message: Message
+};
