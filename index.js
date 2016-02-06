@@ -115,8 +115,8 @@ Promise.all([loginDiscord(), loginIrc()])
             console.log('[D] ' + message.content);
           }
 
-          Promise.resolve(message.content)
-            // .then(console.log);
+          var m = new Message(message.content, message.author.username, 'D', true);
+          Promise.resolve(m)
             .then(formarForIrc)
             .then(sendToIrc);
         }
@@ -129,10 +129,13 @@ Promise.all([loginDiscord(), loginIrc()])
           console.log('[I] ' + text);
         }
 
-        Promise.resolve(text)
-          // .then(console.log);
-          .then(formatForDiscord)
-          .then(sendToDiscord);
+        ircUserRegistered(nick)
+          .then(function(authed) {
+            var m = new Message(text, nick, 'I', authed);
+            Promise.resolve(text)
+              .then(formatForDiscord)
+              .then(sendToDiscord);
+          });
       }
     });
   });
