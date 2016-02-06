@@ -10,11 +10,31 @@ var irc = new IRC.Client(config.irc.server, config.irc.nick, {
 });
 
 function loginDiscord() {
-  // TODO: login to discord
+  return new Promise(function(resolve, reject) {
+    // TODO: login to discord
+  });
 }
 
 function loginIrc() {
-  // TODO: login to irc
+  return new Promise(function(resolve, reject) {
+    // TODO: login to irc
+  });
+}
+
+function formatForDiscord(str) {
+  // TODO: Return properly formatted string
+}
+
+function formarForIrc(str) {
+  // TODO: Return string
+}
+
+function sendToDiscord(str) {
+  // TODO: Send
+}
+
+function sendToIrc(str) {
+  // TODO: Send
 }
 
 Promise.all([loginDiscord(), loginIrc()])
@@ -22,4 +42,27 @@ Promise.all([loginDiscord(), loginIrc()])
     console.error('failed to login');
     throw e;
   })
-  .then();
+  .then(function() {
+    // Add Discord message listeners
+    discord.on('message', function(message) {
+      if (message.channel instanceof Discord.TextChannel) {
+        if (config.verbose) {
+          console.log('[D] ' + message.content);
+        }
+
+        new Promise(message.content)
+          .then(formarForIrc)
+          .then(sendToIrc);
+      }
+    });
+    // Add IRC message listeners
+    irc.on('message#' + config.irc.channel, function(nick, to, text, message) {
+      if (config.verbose) {
+        console.log('[I] ' + text);
+      }
+
+      new Promise(text)
+        .then(formatForDiscord)
+        .then(sendToDiscord);
+    });
+  });
