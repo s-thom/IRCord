@@ -7,7 +7,9 @@ var config = require('./config.json');
 // Possibly change names, to reduce ambiguity with module and variable
 var discord = new Discord.Client();
 var irc = new IRC.Client(config.irc.server, config.irc.nick, {
-  autoConnect: false
+  autoConnect: false,
+  userName: config.irc.nick,
+  realName: 'IRCord'
 });
 
 class Message {
@@ -55,6 +57,9 @@ function loginDiscord() {
 function loginIrc() {
   return new Promise(function(resolve, reject) {
     function tryLogin(nick, to, text, message) {
+      if (config.verbose) {
+        console.log(formatForConsole(new Message(text, nick, 'N', false)));
+      }
       try {
         // Log in once NickSev sends the right messages
         if (nick === 'NickServ' && message.args.join(' ').match(/This nickname is registered and protected\./)) {
@@ -84,8 +89,12 @@ function formatForDiscord(input) {
   return '**[' + input.source + ']** <' + input.user + '> ' + input.text;
 }
 
-function formarForIrc(input) {
-  return '\x0f\x02[\x0302' + input.source + '\x0f] <' + input.user + '> ' + input.text;
+function formatForIrc(input) {
+  return '\x0f\x02[\x0302' + input.source + '\x0f\x02]\x0f <' + input.user + '> ' + input.text;
+}
+
+function formatForConsole(input) {
+  return input.source + ',' + input.user + ': ' + input.text;
 }
 
 function sendToDiscord(str) {
@@ -115,30 +124,31 @@ Promise.all([loginDiscord(), loginIrc()])
     discord.on('message', function(message) {
       if (message.author.id !== discord.user.id) {
         if (message.channel instanceof Discord.TextChannel) {
-          if (config.verbose) {
-            console.log('[D] ' + message.content);
-          }
-
           var m = new Message(message.content, message.author.username, 'D', true);
           Promise.resolve(m)
-            .then(formarForIrc)
+            .then(formatForIrc)
             .then(sendToIrc);
+
+          if (config.verbose) {
+            console.log(formatForConsole(m));
+          }
         }
       }
     });
     // Add IRC message listeners
     irc.on('message' + config.irc.channel, function(nick, text, message) {
       if (nick !== irc.nick) {
-        if (config.verbose) {
-          console.log('[I] ' + text);
-        }
 
         ircUserRegistered(nick)
           .then(function(authed) {
             var m = new Message(text, nick, 'I', authed);
-            Promise.resolve(text)
+            Promise.resolve(m)
               .then(formatForDiscord)
               .then(sendToDiscord);
+
+            if (config.verbose) {
+              console.log(formatForConsole(m));
+            }
           });
       }
     });
