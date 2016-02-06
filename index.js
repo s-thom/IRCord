@@ -11,13 +11,41 @@ var irc = new IRC.Client(config.irc.server, config.irc.nick, {
 
 function loginDiscord() {
   return new Promise(function(resolve, reject) {
-    // TODO: login to discord
+    function onReady() {
+      discord.removeListener('ready', onReady);
+
+      if (config.verbose) {
+        console.log('successfully logged into discord');
+      }
+
+      resolve();
+    }
+    discord.on('ready', onReady);
+    discord.login(config.discord.email, config.discord.pass);
   });
 }
 
 function loginIrc() {
   return new Promise(function(resolve, reject) {
-    // TODO: login to irc
+    function tryLogin(nick, to, text, message) {
+      try {
+        // Log in once NickSev sends the right messages
+        if (nick === 'NickServ' && message.args.join(' ').match(/This nickname is registered and protected\./)) {
+          irc.say('nickserv', 'identify ' + config.irc.pass);
+        } else
+        // When logged in, join the channels
+        if (nick === 'NickServ' && message.args.join(' ').match(/Password accepted/)) {
+          irc.join(config.irc.channel);
+          irc.removeListener('notice', tryLogin);
+          resolve();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    irc.on('notice', tryLogin);
+    irc.connect();
   });
 }
 
