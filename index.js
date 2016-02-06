@@ -114,14 +114,14 @@ class Bridge {
         this.discord.removeListener('ready', onReady);
 
         // Debug output
-        if (config.verbose) {
+        if (this.c.verbose) {
           console.log('successfully logged into discord');
         }
 
         resolve();
       };
       this.discord.on('ready', onReady);
-      this.discord.login(config.discord.email, config.discord.pass);
+      this.discord.login(this.c.discord.email, this.c.discord.pass);
     });
   }
 
@@ -134,22 +134,22 @@ class Bridge {
       // Function that gets called on any Notice
       var tryLogin = (nick, to, text, message) => {
         // Debug output
-        if (config.verbose) {
+        if (this.c.verbose) {
           console.log(this.formatForConsole(new Message(text, nick, 'N', false)));
         }
         try {
           // Log in once NickSev sends the right messages
           if (nick === 'NickServ' && message.args.join(' ').match(/This nickname is registered and protected\./)) {
-            this.irc.say('nickserv', 'identify ' + config.irc.pass);
+            this.irc.say('nickserv', 'identify ' + this.c.irc.pass);
           } else
           // When logged in, join the channels
           if (nick === 'NickServ' && message.args.join(' ').match(/Password accepted/)) {
-            this.irc.join(config.irc.channel);
+            this.irc.join(this.c.irc.channel);
             this.irc.removeListener('notice', tryLogin);
             // Resolve
             resolve();
 
-            if (config.verbose) {
+            if (this.c.verbose) {
               console.log('successfully logged into irc');
             }
           }
@@ -168,7 +168,7 @@ class Bridge {
    * @param {string} str String to output
    */
   sendToDiscord(str) {
-    this.discord.channels.get("name", config.discord.channel).send(str);
+    this.discord.channels.get("name", this.c.discord.channel).send(str);
   }
 
   /**
@@ -176,7 +176,7 @@ class Bridge {
    * @param {string} str String to output
    */
   sendToIrc(str) {
-    this.irc.say(config.irc.channel, str);
+    this.irc.say(this.c.irc.channel, str);
   }
 
   /**
