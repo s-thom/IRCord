@@ -1,0 +1,23 @@
+{
+  "name": "ircord",
+  "version": "1.0.0",
+  "description": "A Discord <-> IRC bridge",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SecretOnline/IRCord.git"
+  },
+  "keywords": [
+    "Discord",
+    "IRC"
+  ],
+  "author": "SecretOnline",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SecretOnline/IRCord/issues"
+  },
+  "homepage": "https://github.com/SecretOnline/IRCord#readme"
+}
