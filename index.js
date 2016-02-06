@@ -80,12 +80,12 @@ function loginIrc() {
   });
 }
 
-function formatForDiscord(str) {
-  // TODO: Return properly formatted string
+function formatForDiscord(input) {
+  return '**[' + input.source + ']** <' + input.user + '> ' + input.text;
 }
 
-function formarForIrc(str) {
-  // TODO: Return string
+function formarForIrc(input) {
+  return '\x0f\x02[\x0302' + input.source + '\x0f] <' + input.user + '> ' + input.text;
 }
 
 function sendToDiscord(str) {
