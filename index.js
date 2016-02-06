@@ -67,7 +67,8 @@ function sendToIrc(str) {
 
 Promise.all([loginDiscord(), loginIrc()])
   .catch(function(e) {
-    console.error('failed to login');
+    console.error('failed to login ' + e);
+    console.error(e.stack);
     throw e;
   })
   .then(function() {
@@ -78,18 +79,18 @@ Promise.all([loginDiscord(), loginIrc()])
           console.log('[D] ' + message.content);
         }
 
-        new Promise(message.content)
+        Promise.resolve(message.content)
           .then(formarForIrc)
           .then(sendToIrc);
       }
     });
     // Add IRC message listeners
-    irc.on('message#' + config.irc.channel, function(nick, to, text, message) {
+    irc.on('message' + config.irc.channel, function(nick, text, message) {
       if (config.verbose) {
         console.log('[I] ' + text);
       }
 
-      new Promise(text)
+      Promise.resolve(text)
         .then(formatForDiscord)
         .then(sendToDiscord);
     });
