@@ -74,24 +74,30 @@ Promise.all([loginDiscord(), loginIrc()])
   .then(function() {
     // Add Discord message listeners
     discord.on('message', function(message) {
-      if (message.channel instanceof Discord.TextChannel) {
-        if (config.verbose) {
-          console.log('[D] ' + message.content);
-        }
+      if (message.author.id !== discord.user.id) {
+        if (message.channel instanceof Discord.TextChannel) {
+          if (config.verbose) {
+            console.log('[D] ' + message.content);
+          }
 
-        Promise.resolve(message.content)
-          .then(formarForIrc)
-          .then(sendToIrc);
+          Promise.resolve(message.content)
+            // .then(console.log);
+            .then(formarForIrc)
+            .then(sendToIrc);
+        }
       }
     });
     // Add IRC message listeners
     irc.on('message' + config.irc.channel, function(nick, text, message) {
-      if (config.verbose) {
-        console.log('[I] ' + text);
-      }
+      if (nick !== irc.nick) {
+        if (config.verbose) {
+          console.log('[I] ' + text);
+        }
 
-      Promise.resolve(text)
-        .then(formatForDiscord)
-        .then(sendToDiscord);
+        Promise.resolve(text)
+          // .then(console.log);
+          .then(formatForDiscord)
+          .then(sendToDiscord);
+      }
     });
   });
