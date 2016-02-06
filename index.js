@@ -1,4 +1,5 @@
 /* jslint node: true, esversion: 6 */
+'use strict';
 var Discord = require('discord.js');
 var IRC = require('irc');
 var config = require('./config.json');
@@ -10,22 +11,27 @@ var irc = new IRC.Client(config.irc.server, config.irc.nick, {
 });
 
 class Message {
-  constructor(value, nick, auth) {
-    this.text = value;
-    this.user = nick;
+  constructor(value, nick, source, auth) {
+    this.value = value;
+    this.nick = nick;
+    this.src = source;
     this.auth = new Boolean(auth);
   }
 
   get text() {
-    return this.text;
+    return this.value;
   }
 
   get user() {
-    return this.user;
+    return this.nick;
+  }
+
+  get source() {
+    return this.src;
   }
 
   isAuth() {
-    return auth;
+    return this.auth;
   }
 
 }
