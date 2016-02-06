@@ -2,15 +2,6 @@
 'use strict';
 var Discord = require('discord.js');
 var IRC = require('irc');
-var config = require('./config.json');
-
-// Possibly change names, to reduce ambiguity with module and variable
-var discord = new Discord.Client();
-var irc = new IRC.Client(config.irc.server, config.irc.nick, {
-  autoConnect: false,
-  userName: config.irc.nick,
-  realName: 'IRCord'
-});
 
 /**
  * @class
@@ -73,128 +64,139 @@ class Bridge {
    * @param {Object} Configuration for the bridge
    */
   constructor(config) {
+    this.c = config;
+    this.discord = new Discord.Client();
+    this.irc = new IRC.Client(this.c.irc.server, this.c.irc.nick, {
+      autoConnect: false,
+      userName: this.c.irc.nick,
+      realName: 'IRCord'
+    });
+
+    this.ircUsers = {}; // Won't always have a full list, used for auth
+  }
+
+  /**
+   * Formats text for output to Discord
+   * @param {Message} input A message to convert
+   * @return {string} String formatted for Discord
+   */
+  static formatForDiscord(input) {
+    return '**[' + input.source + ']** <' + input.user + '> ' + input.text;
+  }
+
+  /**
+   * Formats text for output to IRC
+   * @param {Message} input A message to convert
+   * @return {string} String formatted for IRC
+   */
+  static formatForIrc(input) {
+    return '\x0f\x02[\x0302' + input.source + '\x0f\x02]\x0f <' + input.user + '> ' + input.text;
+  }
+
+  /**
+   * Formats text for output to the console
+   * @param {Message} input A message to convert
+   * @return {string} String formatted for the console
+   */
+  static formatForConsole(input) {
+    return input.source + ',' + input.user + ': ' + input.text;
+  }
+
+  /**
+   * Logs into Discord
+   * @return {Promise} Resolves when logged in
+   */
+  loginDiscord() {
+    return new Promise((resolve, reject) => {
+      // Function that is called when logged in
+      var onReady = () => {
+        // Remove this listener
+        this.discord.removeListener('ready', onReady);
+
+        // Debug output
+        if (config.verbose) {
+          console.log('successfully logged into discord');
+        }
+
+        resolve();
+      };
+      this.discord.on('ready', onReady);
+      this.discord.login(config.discord.email, config.discord.pass);
+    });
+  }
+
+  /**
+   * Logs into IRC
+   * @return {Promise} Resolves when logged in
+   */
+  loginIrc() {
+    return new Promise((resolve, reject) => {
+      // Function that gets called on any Notice
+      var tryLogin = (nick, to, text, message) => {
+        // Debug output
+        if (config.verbose) {
+          console.log(this.formatForConsole(new Message(text, nick, 'N', false)));
+        }
+        try {
+          // Log in once NickSev sends the right messages
+          if (nick === 'NickServ' && message.args.join(' ').match(/This nickname is registered and protected\./)) {
+            this.irc.say('nickserv', 'identify ' + config.irc.pass);
+          } else
+          // When logged in, join the channels
+          if (nick === 'NickServ' && message.args.join(' ').match(/Password accepted/)) {
+            this.irc.join(config.irc.channel);
+            this.irc.removeListener('notice', tryLogin);
+            // Resolve
+            resolve();
+
+            if (config.verbose) {
+              console.log('successfully logged into irc');
+            }
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      };
+
+      this.irc.on('notice', tryLogin);
+      this.irc.connect();
+    });
+  }
+
+  /**
+   * Outputs to Discord
+   * @param {string} str String to output
+   */
+  sendToDiscord(str) {
+    this.discord.channels.get("name", config.discord.channel).send(str);
+  }
+
+  /**
+   * Outputs to IRC
+   * @param {string} str String to output
+   */
+  sendToIrc(str) {
+    this.irc.say(config.irc.channel, str);
+  }
+
+  /**
+   * Checks to see if a user is registered in IRC
+   * @param {string} nick Nick of user to check
+   * @return {Promise} Resolves with Boolean stating whether user is registered
+   */
+  ircUserRegistered(nick) {
+    return new Promise((resolve, reject) => {
+      this.irc.whois(nick, function(info) {
+        // Check if host is a IP, return opposite (i.e. not an IP)
+        resolve(!info.host.match(/\d+\.\d+\.\d+\.\d+/));
+      });
     });
   }
 }
 
-/**
- * Logs into Discord
- * @return {Promise} Resolves when logged in
+/* THE FOLLOWING CODE WILL NOT WORK
+ * Additionally, it causes many 'not defined' errors
  */
-function loginDiscord() {
-  return new Promise(function(resolve, reject) {
-    // Function that is called when logged in
-    function onReady() {
-      // Remove this listener
-      discord.removeListener('ready', onReady);
-
-      // Debug output
-      if (config.verbose) {
-        console.log('successfully logged into discord');
-      }
-
-      resolve();
-    }
-    discord.on('ready', onReady);
-    discord.login(config.discord.email, config.discord.pass);
-  });
-}
-
-/**
- * Logs into IRC
- * @return {Promise} Resolves when logged in
- */
-function loginIrc() {
-  return new Promise(function(resolve, reject) {
-    // Function that gets called on any Notice
-    function tryLogin(nick, to, text, message) {
-      // Debug output
-      if (config.verbose) {
-        console.log(formatForConsole(new Message(text, nick, 'N', false)));
-      }
-      try {
-        // Log in once NickSev sends the right messages
-        if (nick === 'NickServ' && message.args.join(' ').match(/This nickname is registered and protected\./)) {
-          irc.say('nickserv', 'identify ' + config.irc.pass);
-        } else
-        // When logged in, join the channels
-        if (nick === 'NickServ' && message.args.join(' ').match(/Password accepted/)) {
-          irc.join(config.irc.channel);
-          irc.removeListener('notice', tryLogin);
-          // Resolve
-          resolve();
-
-          if (config.verbose) {
-            console.log('successfully logged into irc');
-          }
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    irc.on('notice', tryLogin);
-    irc.connect();
-  });
-}
-
-/**
- * Formats text for output to Discord
- * @param {Message} input A message to convert
- * @return {string} String formatted for Discord
- */
-function formatForDiscord(input) {
-  return '**[' + input.source + ']** <' + input.user + '> ' + input.text;
-}
-
-/**
- * Formats text for output to IRC
- * @param {Message} input A message to convert
- * @return {string} String formatted for IRC
- */
-function formatForIrc(input) {
-  return '\x0f\x02[\x0302' + input.source + '\x0f\x02]\x0f <' + input.user + '> ' + input.text;
-}
-
-/**
- * Formats text for output to the console
- * @param {Message} input A message to convert
- * @return {string} String formatted for the console
- */
-function formatForConsole(input) {
-  return input.source + ',' + input.user + ': ' + input.text;
-}
-
-/**
- * Outputs to Discord
- * @param {string} str String to output
- */
-function sendToDiscord(str) {
-  discord.channels.get("name", config.discord.channel).send(str);
-}
-
-/**
- * Outputs to IRC
- * @param {string} str String to output
- */
-function sendToIrc(str) {
-  irc.say(config.irc.channel, str);
-}
-
-/**
- * Checks to see if a user is registered in IRC
- * @param {string} nick Nick of user to check
- * @return {Promise} Resolves with Boolean stating whether user is registered
- */
-function ircUserRegistered(nick) {
-  return new Promise(function(resolve, reject) {
-    irc.whois(nick, function(info) {
-      // Check if host is a IP, return opposite (i.e. not an IP)
-      resolve(!info.host.match(/\d+\.\d+\.\d+\.\d+/));
-    });
-  });
-}
-
 Promise.all([loginDiscord(), loginIrc()])
   .catch(function(e) {
     console.error('failed to login ' + e);
