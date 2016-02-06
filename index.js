@@ -89,11 +89,11 @@ function formarForIrc(input) {
 }
 
 function sendToDiscord(str) {
-  // TODO: Send
+  discord.channels.get("name", config.discord.channel).send(str);
 }
 
 function sendToIrc(str) {
-  // TODO: Send
+  irc.say(config.irc.channel, str);
 }
 
 function ircUserRegistered(nick) {
