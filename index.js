@@ -65,6 +65,10 @@ function loginIrc() {
           irc.join(config.irc.channel);
           irc.removeListener('notice', tryLogin);
           resolve();
+
+          if (config.verbose) {
+            console.log('successfully logged into irc');
+          }
         }
       } catch (err) {
         console.error(err);
