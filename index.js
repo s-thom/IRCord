@@ -64,6 +64,20 @@ class Message {
 }
 
 /**
+ * @class
+ * A bridge between IRC and Discord
+ */
+class Bridge {
+  /**
+   * @constructor
+   * @param {Object} Configuration for the bridge
+   */
+  constructor(config) {
+    });
+  }
+}
+
+/**
  * Logs into Discord
  * @return {Promise} Resolves when logged in
  */
