@@ -9,6 +9,27 @@ var irc = new IRC.Client(config.irc.server, config.irc.nick, {
   autoConnect: false
 });
 
+class Message {
+  constructor(value, nick, auth) {
+    this.text = value;
+    this.user = nick;
+    this.auth = new Boolean(auth);
+  }
+
+  get text() {
+    return this.text;
+  }
+
+  get user() {
+    return this.user;
+  }
+
+  isAuth() {
+    return auth;
+  }
+
+}
+
 function loginDiscord() {
   return new Promise(function(resolve, reject) {
     function onReady() {
@@ -63,6 +84,14 @@ function sendToDiscord(str) {
 
 function sendToIrc(str) {
   // TODO: Send
+}
+
+function ircUserRegistered(nick) {
+  return new Promise(function(resolve, reject) {
+    irc.whois(nick, function(info) {
+      resolve(!info.host.match(/\d+\.\d+\.\d+\.\d+/));
+    });
+  });
 }
 
 Promise.all([loginDiscord(), loginIrc()])
