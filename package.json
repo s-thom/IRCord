@@ -19,5 +19,9 @@
   "bugs": {
     "url": "https://github.com/SecretOnline/IRCord/issues"
   },
-  "homepage": "https://github.com/SecretOnline/IRCord#readme"
+  "homepage": "https://github.com/SecretOnline/IRCord#readme",
+  "dependencies": {
+    "discord.js": "^6.0.0",
+    "irc": "^0.4.1"
+  }
 }
