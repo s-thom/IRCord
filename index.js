@@ -73,7 +73,7 @@ class Bridge extends EventEmitter {
       realName: 'IRCord'
     });
 
-    this.ircUsers = {}; // Won't always have a full list, used for auth
+    this.ircUsers = new Map(); // Won't always have a full list, used for auth
     this.discordChannel = {}; // Will hold a reference to the channel for easy reference
   }
 
@@ -189,10 +189,77 @@ class Bridge extends EventEmitter {
    */
   ircUserRegistered(nick) {
     return new Promise((resolve, reject) => {
-      this.irc.whois(nick, function(info) {
-        // Check if host is a IP, return opposite (i.e. not an IP)
-        resolve(!info.host.match(/\d+\.\d+\.\d+\.\d+/));
-      });
+      if (this.ircUserRegistered.has(nick)) {
+        resolve(this.ircUserRegistered.get(nick));
+      } else {
+        this.irc.whois(nick, (info) => {
+          // Check if host is a IP, return opposite (i.e. not an IP)
+          var usingVhost = !info.host.match(/\d+\.\d+\.\d+\.\d+/);
+          this.ircUserRegistered.set(nick, usingVhost);
+          resolve(usingVhost);
+        });
+      }
+    });
+  }
+
+  addEvents() {
+    // Add Discord message listeners
+    this.discord.on('message', (message) => {
+      // Ignore messages from self
+      if (message.author.id !== this.discord.user.id) {
+        // Ignore PMs (don't want to be putting those everywhere)
+        if (message.channel instanceof Discord.TextChannel) {
+          // Create message, format, and send
+          var m = new Message(message.content, message.author.username, 'D', true);
+          Promise.resolve(m)
+            .then(Bridge.formatForIrc)
+            .then((value) => {
+              this.sendToIrc(value);
+            });
+
+          this.emit('message', m);
+
+          if (this.c.verbose) {
+            console.log(Bridge.formatForConsole(m));
+          }
+        }
+      }
+    }).on('presence', (old, updated) => {
+      if (old.status === 'offline' && updated.status === 'online') {
+        this.emit('join', updated.username);
+      } else if (old.status === 'online' && updated.status === 'offline') {
+        this.emit('leave', updated.username);
+      }
+    });
+    // Add IRC message listeners
+    this.irc.on('message' + this.c.irc.channel, (nick, text, message) => {
+      // Ignore message from self
+      if (nick !== this.irc.nick) {
+        // Check if user is registered
+        this.ircUserRegistered(nick)
+          .then((authed) => {
+            // Create messafe, format, send
+            var m = new Message(text, nick, 'I', authed);
+            Promise.resolve(m)
+              .then(Bridge.formatForDiscord)
+              .then((value) => {
+                this.sendToDiscord(value);
+              });
+
+            this.emit('message', m);
+
+            if (this.c.verbose) {
+              console.log(Bridge.formatForConsole(m));
+            }
+          });
+      }
+    }).on('join', (channel, nick, message) => {
+      this.emit('join', nick);
+    }).on('part', (channel, nick, message) => {
+      this.emit('leave', nick);
+      if (this.ircUserRegistered.has(nick)) {
+        this.ircUserRegistered.delete(nick);
+      }
     });
   }
 
@@ -208,52 +275,7 @@ class Bridge extends EventEmitter {
       })
       .then(() => {
         this.emit('bridged');
-
-        // Add Discord message listeners
-        this.discord.on('message', (message) => {
-          // Ignore messages from self
-          if (message.author.id !== this.discord.user.id) {
-            // Ignore PMs (don't want to be putting those everywhere)
-            if (message.channel instanceof Discord.TextChannel) {
-              // Create message, format, and send
-              var m = new Message(message.content, message.author.username, 'D', true);
-              Promise.resolve(m)
-                .then(Bridge.formatForIrc)
-                .then((value) => {
-                  this.sendToIrc(value);
-                });
-
-              this.emit('message', m);
-
-              if (this.c.verbose) {
-                console.log(Bridge.formatForConsole(m));
-              }
-            }
-          }
-        });
-        // Add IRC message listeners
-        this.irc.on('message' + this.c.irc.channel, (nick, text, message) => {
-          // Ignore message from self
-          if (nick !== this.irc.nick) {
-            // Check if user is registered
-            this.ircUserRegistered(nick)
-              .then((authed) => {
-                // Create messafe, format, send
-                var m = new Message(text, nick, 'I', authed);
-                Promise.resolve(m)
-                  .then(Bridge.formatForDiscord)
-                  .then((value) => {
-                    this.sendToDiscord(value);
-                  });
-
-                this.emit('message', m);
-
-                if (this.c.verbose) {
-                  console.log(Bridge.formatForConsole(m));
-                }
-              });
-          }
-        });
+        this.addEvents();
       });
   }
 
