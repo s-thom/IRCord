@@ -20,7 +20,7 @@ class Message {
     this.value = value;
     this.nick = nick;
     this.src = source;
-    this.auth = new Boolean(auth);
+    this.auth = auth;
   }
 
   /**
@@ -55,6 +55,12 @@ class Message {
 
 }
 
+class StatusMessage extends Message {
+  constructor(text, source) {
+    super(text, null, source, false);
+  }
+}
+
 /**
  * @class
  * A bridge between IRC and Discord
@@ -84,7 +90,11 @@ class Bridge extends EventEmitter {
    * @return {string} String formatted for Discord
    */
   static formatForDiscord(input) {
-    return '**[' + input.source + ']** <' + input.user + '> ' + input.text;
+    if (input instanceof StatusMessage) {
+      return '**[' + input.source + ']** *' + input.text + '*';
+    } else {
+      return '**[' + input.source + ']** <' + input.user + '> ' + input.text;
+    }
   }
 
   /**
@@ -93,7 +103,11 @@ class Bridge extends EventEmitter {
    * @return {string} String formatted for IRC
    */
   static formatForIrc(input) {
-    return '\x0f\x02[\x0302' + input.source + '\x0f\x02]\x0f <' + input.user + '> ' + input.text;
+    if (input instanceof StatusMessage) {
+      return '\x0f\x02[\x0302' + input.source + '\x0f\x02]\x0f \x1d' + input.text;
+    } else {
+      return '\x0f\x02[\x0302' + input.source + '\x0f\x02]\x0f <' + input.user + '> ' + input.text;
+    }
   }
 
   /**
@@ -167,6 +181,20 @@ class Bridge extends EventEmitter {
     });
   }
 
+  send(input) {
+    if (input.source) {
+      if (input.source !== 'D') {
+        this.sendToDiscord(this.formatForDiscord(input));
+      }
+      if (input.source !== 'I') {
+        this.sendToIrc(this.formatForIrc(input));
+      }
+    } else {
+      this.sendToDiscord(input.text);
+      this.sendToIrc(input.text);
+    }
+  }
+
   /**
    * Outputs to Discord
    * @param {string} str String to output
@@ -211,12 +239,7 @@ class Bridge extends EventEmitter {
         if (message.channel instanceof Discord.TextChannel) {
           // Create message, format, and send
           var m = new Message(message.content, message.author.username, 'D', true);
-          Promise.resolve(m)
-            .then(Bridge.formatForIrc)
-            .then((value) => {
-              this.sendToIrc(value);
-            });
-
+          this.send(m);
           this.emit('message', m);
 
           if (this.c.verbose) {
@@ -228,13 +251,13 @@ class Bridge extends EventEmitter {
       if (!(old.username === this.discord.user.username || updated.username === this.discord.user.name)) {
         var m;
         if (old.status === 'offline' && updated.status === 'online') {
-          m = new Message(null, updated.username, 'D', true);
+          m = new StatusMessage(updated.username + 'joined Discord', 'D');
           this.emit('join', m);
-          this.sendToIrc('\x0f\x02[\x0302' + m.source + '\x0f\x02]\x0f \x1d' + m.user + ' just joined Discord');
+          this.send(m);
         } else if (old.status === 'online' && updated.status === 'offline') {
-          m = new Message(null, updated.username, 'D', true);
+          m = new StatusMessage(updated.username + 'left Discord', 'D');
           this.emit('leave', m);
-          this.sendToIrc('\x0f\x02[\x0302' + m.source + '\x0f\x02]\x0f \x1d' + m.user + ' just left Discord');
+          this.send(m);
         }
       }
     });
@@ -247,12 +270,7 @@ class Bridge extends EventEmitter {
           .then((authed) => {
             // Create messafe, format, send
             var m = new Message(text, nick, 'I', authed);
-            Promise.resolve(m)
-              .then(Bridge.formatForDiscord)
-              .then((value) => {
-                this.sendToDiscord(value);
-              });
-
+            this.send(m);
             this.emit('message', m);
 
             if (this.c.verbose) {
@@ -265,16 +283,16 @@ class Bridge extends EventEmitter {
         this.ircUserRegistered(nick)
           .then((authed) => {
             // Create messafe, format, send
-            var m = new Message(null, nick, 'I', authed);
-            this.sendToDiscord('**[' + m.source + ']** *' + m.user + ' just joined IRC*');
+            var m = new StatusMessage(nick + ' joined IRC', 'I');
+            this.send(m);
             this.emit('join', m);
           });
       }
     }).on('part', (channel, nick, message) => {
       if (nick !== this.c.irc.nick) {
-        var m = new Message(null, nick, 'I', false);
+        var m = new StatusMessage(nick + ' left IRC', 'I');
         this.emit('leave', m);
-        this.sendToDiscord('**[' + m.source + ']** *' + m.user + ' just left IRC*');
+        this.send(m);
         if (typeof this.ircUserRegistered[nick] !== 'undefined') {
           delete this.ircUserRegistered[nick];
         }
@@ -285,7 +303,7 @@ class Bridge extends EventEmitter {
   /**
    * Builds a bridge, so your messages can get over it
    */
-  bridge() {
+  build() {
     return Promise.all([this.loginDiscord(), this.loginIrc()])
       .catch(function(e) {
         console.error('failed to login ' + e);
