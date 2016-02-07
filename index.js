@@ -137,7 +137,7 @@ class Bridge {
       var tryLogin = (nick, to, text, message) => {
         // Debug output
         if (this.c.verbose) {
-          console.log(this.formatForConsole(new Message(text, nick, 'N', false)));
+          console.log(Bridge.formatForConsole(new Message(text, nick, 'N', false)));
         }
         try {
           // Log in once NickSev sends the right messages
@@ -215,11 +215,13 @@ class Bridge {
               // Create message, format, and send
               var m = new Message(message.content, message.author.username, 'D', true);
               Promise.resolve(m)
-                .then(this.formatForIrc)
-                .then(this.sendToIrc);
+                .then(Bridge.formatForIrc)
+                .then((value) => {
+                  this.sendToIrc(value);
+                });
 
               if (this.c.verbose) {
-                console.log(this.formatForConsole(m));
+                console.log(Bridge.formatForConsole(m));
               }
             }
           }
@@ -234,11 +236,13 @@ class Bridge {
                 // Create messafe, format, send
                 var m = new Message(text, nick, 'I', authed);
                 Promise.resolve(m)
-                  .then(this.formatForDiscord)
-                  .then(this.sendToDiscord);
+                  .then(Bridge.formatForDiscord)
+                  .then((value) => {
+                    this.sendToDiscord(value);
+                  });
 
                 if (this.c.verbose) {
-                  console.log(this.formatForConsole(m));
+                  console.log(Bridge.formatForConsole(m));
                 }
               });
           }
