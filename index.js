@@ -181,13 +181,13 @@ class Bridge extends EventEmitter {
     });
   }
 
-  send(input) {
+  sendAll(input) {
     if (input.source) {
       if (input.source !== 'D') {
-        this.sendToDiscord(this.formatForDiscord(input));
+        this.sendToDiscord(Bridge.formatForDiscord(input));
       }
       if (input.source !== 'I') {
-        this.sendToIrc(this.formatForIrc(input));
+        this.sendToIrc(Bridge.formatForIrc(input));
       }
     } else {
       this.sendToDiscord(input.text);
@@ -239,7 +239,7 @@ class Bridge extends EventEmitter {
         if (message.channel instanceof Discord.TextChannel) {
           // Create message, format, and send
           var m = new Message(message.content, message.author.username, 'D', true);
-          this.send(m);
+          this.sendAll(m);
           this.emit('message', m);
 
           if (this.c.verbose) {
@@ -251,13 +251,13 @@ class Bridge extends EventEmitter {
       if (!(old.username === this.discord.user.username || updated.username === this.discord.user.name)) {
         var m;
         if (old.status === 'offline' && updated.status === 'online') {
-          m = new StatusMessage(updated.username + 'joined Discord', 'D');
+          m = new StatusMessage(updated.username + ' joined Discord', 'D');
           this.emit('join', m);
-          this.send(m);
+          this.sendAll(m);
         } else if (old.status === 'online' && updated.status === 'offline') {
-          m = new StatusMessage(updated.username + 'left Discord', 'D');
+          m = new StatusMessage(updated.username + ' left Discord', 'D');
           this.emit('leave', m);
-          this.send(m);
+          this.sendAll(m);
         }
       }
     });
@@ -270,7 +270,7 @@ class Bridge extends EventEmitter {
           .then((authed) => {
             // Create messafe, format, send
             var m = new Message(text, nick, 'I', authed);
-            this.send(m);
+            this.sendAll(m);
             this.emit('message', m);
 
             if (this.c.verbose) {
@@ -280,11 +280,15 @@ class Bridge extends EventEmitter {
       }
     }).on('join', (channel, nick, message) => { // Check if user is registered
       if (nick !== this.c.irc.nick) {
+        // Reset resistered state
+        if (typeof this.ircUserRegistered[nick] !== 'undefined') {
+          delete this.ircUserRegistered[nick];
+        }
         this.ircUserRegistered(nick)
           .then((authed) => {
             // Create messafe, format, send
             var m = new StatusMessage(nick + ' joined IRC', 'I');
-            this.send(m);
+            this.sendAll(m);
             this.emit('join', m);
           });
       }
@@ -292,7 +296,7 @@ class Bridge extends EventEmitter {
       if (nick !== this.c.irc.nick) {
         var m = new StatusMessage(nick + ' left IRC', 'I');
         this.emit('leave', m);
-        this.send(m);
+        this.sendAll(m);
         if (typeof this.ircUserRegistered[nick] !== 'undefined') {
           delete this.ircUserRegistered[nick];
         }
