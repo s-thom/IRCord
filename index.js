@@ -301,6 +301,15 @@ class Bridge extends EventEmitter {
           delete this.ircUserRegistered[nick];
         }
       }
+    }).on('nick', (oldnick, newnick, channels, message) => {
+      if (oldnick !== this.c.irc.nick) {
+        var m = new StatusMessage(oldnick + ' is now known as ' + newnick, 'I');
+        this.emit('leave', m);
+        this.sendAll(m);
+        if (typeof this.ircUserRegistered[oldnick] !== 'undefined') {
+          delete this.ircUserRegistered[oldnick];
+        }
+      }
     });
   }
 
