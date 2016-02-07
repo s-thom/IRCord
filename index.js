@@ -256,6 +256,16 @@ class Bridge extends EventEmitter {
         });
       });
   }
+
+  /**
+   * Burns the bridge to the ground
+   */
+  burn() {
+    // Disconnect from Discord
+    this.discord.logout();
+    // Disconnect from IRC
+    this.irc.disconnect();
+  }
 }
 
 module.exports = {
