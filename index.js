@@ -65,6 +65,7 @@ class Bridge extends EventEmitter {
    * @param {Object} Configuration for the bridge
    */
   constructor(config) {
+    super();
     this.c = config;
     this.discord = new Discord.Client();
     this.irc = new IRC.Client(this.c.irc.server, this.c.irc.nick, {
@@ -225,10 +226,15 @@ class Bridge extends EventEmitter {
         }
       }
     }).on('presence', (old, updated) => {
+      var m;
       if (old.status === 'offline' && updated.status === 'online') {
-        this.emit('join', updated.username);
+        m = new Message(null, updated.username, 'D', true);
+        this.emit('join', m);
+        this.sendToIrc('\x0f\x02[\x0302' + m.source + '\x0f\x02]\x0f \x1d' + m.user + ' just joined Discord');
       } else if (old.status === 'online' && updated.status === 'offline') {
-        this.emit('leave', updated.username);
+        m = new Message(null, updated.username, 'D', true);
+        this.emit('leave', m);
+        this.sendToIrc('\x0f\x02[\x0302' + m.source + '\x0f\x02]\x0f \x1d' + m.user + ' just left Discord');
       }
     });
     // Add IRC message listeners
@@ -253,10 +259,18 @@ class Bridge extends EventEmitter {
             }
           });
       }
-    }).on('join', (channel, nick, message) => {
-      this.emit('join', nick);
+    }).on('join', (channel, nick, message) => { // Check if user is registered
+      this.ircUserRegistered(nick)
+        .then((authed) => {
+          // Create messafe, format, send
+          var m = new Message(null, nick, 'I', authed);
+          this.sendToDiscord('**[' + m.source + ']** *' + m.user + ' just joined IRC*');
+          this.emit('join', m);
+        });
     }).on('part', (channel, nick, message) => {
-      this.emit('leave', nick);
+      var m = new Message(null, nick, 'I', false);
+      this.emit('leave', m);
+      this.sendToDiscord('**[' + m.source + ']** *' + m.user + ' just left IRC*');
       if (this.ircUserRegistered.has(nick)) {
         this.ircUserRegistered.delete(nick);
       }
