@@ -74,7 +74,7 @@ class Bridge extends EventEmitter {
       realName: 'IRCord'
     });
 
-    this.ircUsers = new Map(); // Won't always have a full list, used for auth
+    this.ircUsers = {}; // Won't always have a full list, used for auth
     this.discordChannel = {}; // Will hold a reference to the channel for easy reference
   }
 
@@ -190,15 +190,14 @@ class Bridge extends EventEmitter {
    */
   ircUserRegistered(nick) {
     return new Promise((resolve, reject) => {
-      if (this.ircUserRegistered.has(nick)) {
-        resolve(this.ircUserRegistered.get(nick));
-      } else {
+      if (typeof this.ircUserRegistered[nick] === 'undefined') {
         this.irc.whois(nick, (info) => {
           // Check if host is a IP, return opposite (i.e. not an IP)
           var usingVhost = !info.host.match(/\d+\.\d+\.\d+\.\d+/);
-          this.ircUserRegistered.set(nick, usingVhost);
           resolve(usingVhost);
         });
+      } else {
+        resolve(this.ircUserRegistered[nick]);
       }
     });
   }
@@ -226,15 +225,17 @@ class Bridge extends EventEmitter {
         }
       }
     }).on('presence', (old, updated) => {
-      var m;
-      if (old.status === 'offline' && updated.status === 'online') {
-        m = new Message(null, updated.username, 'D', true);
-        this.emit('join', m);
-        this.sendToIrc('\x0f\x02[\x0302' + m.source + '\x0f\x02]\x0f \x1d' + m.user + ' just joined Discord');
-      } else if (old.status === 'online' && updated.status === 'offline') {
-        m = new Message(null, updated.username, 'D', true);
-        this.emit('leave', m);
-        this.sendToIrc('\x0f\x02[\x0302' + m.source + '\x0f\x02]\x0f \x1d' + m.user + ' just left Discord');
+      if (!(old.username === this.discord.user.username || updated.username === this.discord.user.name)) {
+        var m;
+        if (old.status === 'offline' && updated.status === 'online') {
+          m = new Message(null, updated.username, 'D', true);
+          this.emit('join', m);
+          this.sendToIrc('\x0f\x02[\x0302' + m.source + '\x0f\x02]\x0f \x1d' + m.user + ' just joined Discord');
+        } else if (old.status === 'online' && updated.status === 'offline') {
+          m = new Message(null, updated.username, 'D', true);
+          this.emit('leave', m);
+          this.sendToIrc('\x0f\x02[\x0302' + m.source + '\x0f\x02]\x0f \x1d' + m.user + ' just left Discord');
+        }
       }
     });
     // Add IRC message listeners
@@ -260,19 +261,23 @@ class Bridge extends EventEmitter {
           });
       }
     }).on('join', (channel, nick, message) => { // Check if user is registered
-      this.ircUserRegistered(nick)
-        .then((authed) => {
-          // Create messafe, format, send
-          var m = new Message(null, nick, 'I', authed);
-          this.sendToDiscord('**[' + m.source + ']** *' + m.user + ' just joined IRC*');
-          this.emit('join', m);
-        });
+      if (nick !== this.c.irc.nick) {
+        this.ircUserRegistered(nick)
+          .then((authed) => {
+            // Create messafe, format, send
+            var m = new Message(null, nick, 'I', authed);
+            this.sendToDiscord('**[' + m.source + ']** *' + m.user + ' just joined IRC*');
+            this.emit('join', m);
+          });
+      }
     }).on('part', (channel, nick, message) => {
-      var m = new Message(null, nick, 'I', false);
-      this.emit('leave', m);
-      this.sendToDiscord('**[' + m.source + ']** *' + m.user + ' just left IRC*');
-      if (this.ircUserRegistered.has(nick)) {
-        this.ircUserRegistered.delete(nick);
+      if (nick !== this.c.irc.nick) {
+        var m = new Message(null, nick, 'I', false);
+        this.emit('leave', m);
+        this.sendToDiscord('**[' + m.source + ']** *' + m.user + ' just left IRC*');
+        if (typeof this.ircUserRegistered[nick] !== 'undefined') {
+          delete this.ircUserRegistered[nick];
+        }
       }
     });
   }
