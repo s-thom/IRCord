@@ -1,5 +1,6 @@
 /* jslint node: true, esversion: 6 */
 'use strict';
+var EventEmitter = require('events');
 var Discord = require('discord.js');
 var IRC = require('irc');
 
@@ -58,7 +59,7 @@ class Message {
  * @class
  * A bridge between IRC and Discord
  */
-class Bridge {
+class Bridge extends EventEmitter {
   /**
    * @constructor
    * @param {Object} Configuration for the bridge
@@ -206,6 +207,8 @@ class Bridge {
         throw e;
       })
       .then(() => {
+        this.emit('bridged');
+
         // Add Discord message listeners
         this.discord.on('message', (message) => {
           // Ignore messages from self
@@ -219,6 +222,8 @@ class Bridge {
                 .then((value) => {
                   this.sendToIrc(value);
                 });
+
+              this.emit('message', m);
 
               if (this.c.verbose) {
                 console.log(Bridge.formatForConsole(m));
@@ -240,6 +245,8 @@ class Bridge {
                   .then((value) => {
                     this.sendToDiscord(value);
                   });
+
+                this.emit('message', m);
 
                 if (this.c.verbose) {
                   console.log(Bridge.formatForConsole(m));
