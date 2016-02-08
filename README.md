@@ -15,7 +15,7 @@ let config = require('<PATH TO config.json>');
 let bridge = new ircord.Bridge(config);
 
 // Start the bridge
-bridge.bridge();
+bridge.build();
 
 ```
 
