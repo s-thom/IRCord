@@ -129,7 +129,11 @@ class Bridge extends EventEmitter {
       var onReady = () => {
         // Remove this listener
         this.discord.removeListener('ready', onReady);
-        this.discordChannel = this.discord.channels.get("name", this.c.discord.channel);
+        if (this.c.discord.channelID) {
+          this.discordChannel = this.discord.channels.get("id", this.c.discord.channelID);
+        } else {
+          this.discordChannel = this.discord.channels.get("name", this.c.discord.channel);
+        }
 
         // Debug output
         if (this.c.verbose) {
@@ -237,27 +241,51 @@ class Bridge extends EventEmitter {
       if (message.author.id !== this.discord.user.id) {
         // Ignore PMs (don't want to be putting those everywhere)
         if (message.channel instanceof Discord.TextChannel) {
-          // Create message, format, and send
-          var m = new Message(message.content, message.author.username, 'D', true);
-          this.sendAll(m);
-          this.emit('message', m);
+          if (message.channel.server.id === this.discordChannel.server.id) {
+            var text = message.content;
+            // Test for raw user/channel mentions
+            var match;
+            var regex = /<([@#])(\d+)>/g;
+            while ((match = regex.exec(text)) !== null) {
+              try {
+                if (match[1] === '@') {
+                  // Replace user
+                  var nick = message.channel.server.members.get('id', match[2]).username;
+                  text = text.replace(match[0], '@' + nick);
+                } else if (match[1] === '#') {
+                  // replace channel
+                  var chan = message.channel.server.channels.get('id', match[2]).name;
+                  text = text.replace(match[0], '#' + chan);
+                }
+              } catch (e) {
+                console.error('[ERROR]: Unable to perform replacement operation on ' + match[0]);
+                console.error(e);
+              }
+            }
+            // Create message, format, and send
+            var m = new Message(text, message.author.username, 'D', true);
+            this.sendAll(m);
+            this.emit('message', m);
 
-          if (this.c.verbose) {
-            console.log(Bridge.formatForConsole(m));
+            if (this.c.verbose) {
+              console.log(Bridge.formatForConsole(m));
+            }
           }
         }
       }
     }).on('presence', (old, updated) => {
       if (!(old.username === this.discord.user.username || updated.username === this.discord.user.name)) {
-        var m;
-        if (old.status === 'offline' && updated.status === 'online') {
-          m = new StatusMessage(updated.username + ' joined Discord', 'D');
-          this.emit('join', m);
-          this.sendAll(m);
-        } else if (old.status === 'online' && updated.status === 'offline') {
-          m = new StatusMessage(updated.username + ' left Discord', 'D');
-          this.emit('leave', m);
-          this.sendAll(m);
+        if (this.discordChannel.server.members.has('id', updated.id)) {
+          var m;
+          if (old.status === 'offline' && updated.status === 'online') {
+            m = new StatusMessage(updated.username + ' joined Discord', 'D');
+            this.emit('join', m);
+            this.sendAll(m);
+          } else if (old.status === 'online' && updated.status === 'offline') {
+            m = new StatusMessage(updated.username + ' left Discord', 'D');
+            this.emit('leave', m);
+            this.sendAll(m);
+          }
         }
       }
     });
