@@ -239,9 +239,23 @@ class Bridge extends EventEmitter {
     this.discord.on('message', (message) => {
       // Ignore messages from self
       if (message.author.id !== this.discord.user.id) {
-        // Ignore PMs (don't want to be putting those everywhere)
-        if (message.channel instanceof Discord.TextChannel) {
-          if (message.channel.server.id === this.discordChannel.server.id) {
+        if (message.channel.server.id === this.discordChannel.server.id) {
+
+          // Ignore links from Gunter in the bridge, but still emit event
+          if (message.author.name === 'Gunter') {
+            if (message.content.match(/https?:\/\/\S+/i)) {
+              // Create message, format, and send
+              var mess = new Message(message.content, message.author.username, 'D', true);
+              this.emit('message', mess);
+
+              if (this.c.verbose) {
+                console.log(Bridge.formatForConsole(mess));
+              }
+              return;
+            }
+          }
+
+          if (message.channel.id === this.discordChannel.id) {
             var text = message.content;
             // Test for raw user/channel mentions
             var match;
@@ -275,13 +289,16 @@ class Bridge extends EventEmitter {
       }
     }).on('presence', (old, updated) => {
       if (!(old.username === this.discord.user.username || updated.username === this.discord.user.name)) {
-        if (this.discordChannel.server.members.has('id', updated.id)) {
-          var m;
-          if (old.status === 'offline' && updated.status === 'online') {
+        var m;
+        if (old.status === 'offline' && updated.status === 'online') {
+          if (updated.client.servers.has('id', this.discordChannel.server.id)) {
             m = new StatusMessage(updated.username + ' joined Discord', 'D');
             this.emit('join', m);
             this.sendAll(m);
-          } else if (old.status === 'online' && updated.status === 'offline') {
+          }
+        } else if (old.status === 'online' && updated.status === 'offline') {
+
+          if (old.client.servers.has('id', this.discordChannel.server.id)) {
             m = new StatusMessage(updated.username + ' left Discord', 'D');
             this.emit('leave', m);
             this.sendAll(m);
@@ -291,6 +308,22 @@ class Bridge extends EventEmitter {
     });
     // Add IRC message listeners
     this.irc.on('message' + this.c.irc.channel, (nick, text, message) => {
+      // Ignore links from Gunter in the bridge, but still emit event
+      if (nick === 'Gunter') {
+        if (text.match(/https?:\/\/\S+/i)) {
+          this.ircUserRegistered(nick)
+            .then((authed) => {
+              // Create message, format, and send
+              var mess = new Message(text, nick, 'I', true);
+              this.emit('message', mess);
+
+              if (this.c.verbose) {
+                console.log(Bridge.formatForConsole(mess));
+              }
+            });
+          return;
+        }
+      }
       // Ignore message from self
       if (nick !== this.irc.nick) {
         // Check if user is registered
