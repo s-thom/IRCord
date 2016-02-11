@@ -61,6 +61,12 @@ class StatusMessage extends Message {
   }
 }
 
+class ErrorMessage extends Message {
+  constructor(err) {
+    super(err.message, null, '[Error]', false);
+  }
+}
+
 /**
  * @class
  * A bridge between IRC and Discord
