@@ -409,5 +409,7 @@ class Bridge extends EventEmitter {
 
 module.exports = {
   Bridge: Bridge,
-  Message: Message
+  Message: Message,
+  StatusMessage: StatusMessage,
+  ErrorMessage: ErrorMessage
 };
