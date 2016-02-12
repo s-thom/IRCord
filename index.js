@@ -63,7 +63,7 @@ class StatusMessage extends Message {
 
 class ErrorMessage extends Message {
   constructor(err) {
-    super(err.message, null, '[Error]', false);
+    super(err.message, null, 'Error', false);
   }
 }
 
@@ -98,6 +98,8 @@ class Bridge extends EventEmitter {
   static formatForDiscord(input) {
     if (input instanceof StatusMessage) {
       return '**[' + input.source + ']** *' + input.text + '*';
+    } else if (input instanceof ErrorMessage) {
+      return '**[' + input.source + ']** *' + input.text + '*';
     } else {
       return '**[' + input.source + ']** <' + input.user + '> ' + input.text;
     }
@@ -110,7 +112,9 @@ class Bridge extends EventEmitter {
    */
   static formatForIrc(input) {
     if (input instanceof StatusMessage) {
-      return '\x0f\x02[\x0302' + input.source + '\x0f\x02]\x0f \x1d' + input.text;
+      return '\x0f\x02[\x0306' + input.source + '\x0f\x02]\x0f \x1d' + input.text;
+    } else if (input instanceof ErrorMessage) {
+      return '\x0f\x02[\x0304' + input.source + '\x0f\x02]\x0f \x1d' + input.text;
     } else {
       return '\x0f\x02[\x0302' + input.source + '\x0f\x02]\x0f <' + input.user + '> ' + input.text;
     }
