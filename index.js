@@ -253,7 +253,7 @@ class Bridge extends EventEmitter {
 
           // Ignore links from Gunter in the bridge, but still emit event
           if (message.author.name === 'Gunter') {
-            if (message.content.match(/https?:\/\/\S+/i)) {
+            if (message.content.match(/^\xe2\x80\x8b/i)) {
               // Create message, format, and send
               var mess = new Message(message.content, message.author.username, 'D', true);
               this.emit('message', mess);
@@ -320,7 +320,7 @@ class Bridge extends EventEmitter {
     this.irc.on('message' + this.c.irc.channel, (nick, text, message) => {
       // Ignore links from Gunter in the bridge, but still emit event
       if (nick === 'Gunter') {
-        if (text.match(/https?:\/\/\S+/i)) {
+        if (text.match(/^\x0f/i)) {
           this.ircUserRegistered(nick)
             .then((authed) => {
               // Create message, format, and send
