@@ -56,8 +56,8 @@ class Message {
 }
 
 class StatusMessage extends Message {
-  constructor(text, source) {
-    super(text, null, source, false);
+  constructor(text, source, nick) {
+    super(text, nick, source, false);
   }
 }
 
@@ -302,14 +302,14 @@ class Bridge extends EventEmitter {
         var m;
         if (old.status === 'offline' && updated.status === 'online') {
           if (updated.client.servers.has('id', this.discordChannel.server.id)) {
-            m = new StatusMessage(updated.username + ' joined Discord', 'D');
+            m = new StatusMessage(updated.username + ' joined Discord', 'D', updated.username);
             this.emit('join', m);
             this.sendAll(m);
           }
         } else if (old.status === 'online' && updated.status === 'offline') {
 
           if (old.client.servers.has('id', this.discordChannel.server.id)) {
-            m = new StatusMessage(updated.username + ' left Discord', 'D');
+            m = new StatusMessage(updated.username + ' left Discord', 'D', updated.username);
             this.emit('leave', m);
             this.sendAll(m);
           }
@@ -358,14 +358,14 @@ class Bridge extends EventEmitter {
         this.ircUserRegistered(nick)
           .then((authed) => {
             // Create messafe, format, send
-            var m = new StatusMessage(nick + ' joined IRC', 'I');
+            var m = new StatusMessage(nick + ' joined IRC', 'I', nick);
             this.sendAll(m);
             this.emit('join', m);
           });
       }
     }).on('part', (channel, nick, message) => {
       if (nick !== this.c.irc.nick) {
-        var m = new StatusMessage(nick + ' left IRC', 'I');
+        var m = new StatusMessage(nick + ' left IRC', 'I', nick);
         this.emit('leave', m);
         this.sendAll(m);
         if (typeof this.ircUserRegistered[nick] !== 'undefined') {
