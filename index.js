@@ -244,6 +244,10 @@ class Bridge extends EventEmitter {
     });
   }
 
+  setPlaying(str) {
+    this.discord.setStatus('online', str);
+  }
+
   addEvents() {
     // Add Discord message listeners
     this.discord.on('message', (message) => {
