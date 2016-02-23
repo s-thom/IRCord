@@ -116,7 +116,7 @@ class Bridge extends EventEmitter {
     } else if (input instanceof ErrorMessage) {
       return '\x0f\x02[\x0304' + input.source + '\x0f\x02]\x0f \x1d' + input.text;
     } else {
-      var t = input.text.replace(/```([.\r\n]*)```/i, '\x0314Code block removed to prevent spam');
+      var t = input.text.replace(/```(?:.|\s)*```/i, '\x0314Code block removed to prevent spam');
       return '\x0f\x02[\x0302' + input.source + '\x0f\x02]\x0f <' + input.user + '> ' + t;
     }
   }
