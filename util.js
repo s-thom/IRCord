@@ -1,5 +1,6 @@
 /* jslint node: true, esversion: 6 */
 'use strict';
+var EventEmitter = require('events');
 
 /**
  * @class
@@ -61,6 +62,43 @@ class StatusMessage extends Message {
 class ErrorMessage extends Message {
   constructor(err) {
     super(err.message, null, 'Error', false);
+  }
+}
+
+class BridgeComponent extends EventEmitter {
+  constructor(conf) {
+    this._conf = conf;
+    this._name = conf.name;
+    this._initial = conf.initial.charAt(0);
+    this._colour = conf.colour;
+  }
+
+  get name() {
+    return this._name;
+  }
+
+  get initial() {
+    return this._initial;
+  }
+
+  get colour() {
+    return this._colour;
+  }
+
+  send(message) {
+    throw new Error('must override send function');
+  }
+
+  login() {
+    throw new Error('must override login function');
+  }
+
+  logout() {
+    throw new Error('must override logout function');
+  }
+
+  setPlaying(name) {
+    // do nothing by default
   }
 }
 
