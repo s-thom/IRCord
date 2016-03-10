@@ -306,7 +306,16 @@ class Bridge extends EventEmitter {
             this.emit('join', m);
           });
       }
-    }).on('part', (channel, nick, message) => {
+    }).on('part', (channel, nick, reason, message) => {
+      if (nick !== this.c.irc.nick) {
+        var m = new u.StatusMessage(nick + ' left #' + channel, 'I', nick);
+        this.emit('leave', m);
+        this.sendAll(m);
+        if (typeof this.ircUserRegistered[nick] !== 'undefined') {
+          delete this.ircUserRegistered[nick];
+        }
+      }
+    }).on('quit', (nick, reason, channels, message) => {
       if (nick !== this.c.irc.nick) {
         var m = new u.StatusMessage(nick + ' left IRC', 'I', nick);
         this.emit('leave', m);
